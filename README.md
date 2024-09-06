@@ -20,7 +20,7 @@ The solution consists of the following components:
 
 Below is the architecture diagram showing how the components interact across multiple AWS accounts:
 
-![ACM Monitoring Architecture](acm.jpg)
+![ACM Monitoring Architecture](./img/acm.jpg)
 
 ### Repository Structure
 
@@ -75,7 +75,7 @@ A solução consiste nos seguintes componentes:
 
 Abaixo está o diagrama de arquitetura mostrando como os componentes interagem em várias contas AWS:
 
-![Arquitetura de Monitoramento ACM](acm.jpg)
+![Arquitetura de Monitoramento ACM](./img/acm.jpg)
 
 ### Estrutura do Repositório
 
