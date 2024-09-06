@@ -1,107 +1,166 @@
-# ACM Certificates Monitoring Solution
+# Table of Contents
 
-This repository contains a solution for monitoring ACM (Amazon Certificate Manager) certificates across multiple AWS accounts. The solution is composed of two main components: **Coordinator** and **Worker**, each implemented as Lambda functions.
-
-## Solution Overview
-
-The solution consists of the following components:
-
-- **Coordinator Lambda Function:** Deployed in a "shared services" AWS account, the Coordinator function triggers the Worker Lambda function(s) in one or more AWS accounts, including its own account. It collects the results from the Worker function and triggers an SNS topic to notify about ACM certificates close to expiration.
-  
-- **Worker Lambda Function:** This function checks the ACM certificates in the AWS account where it is deployed. It verifies the status of the certificates and sends the results back to the Coordinator function.
-
-- **EventBridge:** Configured to periodically trigger the Coordinator function to check for certificates approaching their expiration.
-
-- **SNS (Simple Notification Service):** Notifies the user when ACM certificates are close to expiration.
-
-- **CloudWatch Logs:** Both the Coordinator and Worker functions log their operations for monitoring purposes.
-
-### Architecture
-
-Below is the architecture diagram showing how the components interact across multiple AWS accounts:
-
-![ACM Monitoring Architecture](./img/acm.jpg)
-
-### Repository Structure
-
-The repository contains two main branches:
-
-- **Main Branch:** Contains only this `README.md` file, serving as an introduction and guide.
-- **Coordinator Branch:** Contains the Terraform code to deploy both the Coordinator and Worker Lambda functions in the main AWS account (Shared Services).
-- **Worker Branch:** Contains the Terraform code to deploy only the Worker Lambda function in additional AWS accounts.
-
-## Usage
-
-### Choosing the Right Branch
-
-- If you are setting up the **Coordinator** function (and Worker in the same account), clone the **Coordinator Branch**.
-- If you are setting up only the **Worker** function in another AWS account, clone the **Worker Branch**.
-
-### Coordinator Branch Deployment
-
-1. Clone the **Coordinator** branch.
-2. Modify the `backend.tf` and `variables.tf` files as needed for your environment.
-3. Run `terraform init` to initialize the project.
-4. Run `terraform apply` to deploy the Coordinator and Worker Lambda functions in the main AWS account.
-
-### Worker Branch Deployment
-
-1. Clone the **Worker** branch.
-2. Modify the `backend.tf` and `variables.tf` files to match your environment.
-3. Run `terraform init` to initialize the project.
-4. Run `terraform apply` to deploy the Worker Lambda function in the AWS account.
+1. [English Version](#acm-monitoring-english-version)
+   - [Project Structure](#project-structure)
+   - [Main Files](#main-files)
+   - [Modules](#modules)
+   - [Functionalities](#functionalities)
+   - [Project Execution](#project-execution)
+2. [Versão Português](#acm-monitoring-versão-português)
+   - [Estrutura do Projeto](#estrutura-do-projeto)
+   - [Arquivos Principais](#arquivos-principais)
+   - [Módulos](#módulos)
+   - [Funcionalidades](#funcionalidades)
+   - [Execução do Projeto](#execução-do-projeto)
 
 ---
+# ACM Monitoring (English Version)
 
-# Solução de Monitoramento de Certificados ACM
+This repository contains a set of infrastructure resources defined using Terraform to monitor ACM (Amazon Certificate Manager) certificates and notify about certificates that are about to expire. It leverages AWS services like Lambda functions, EventBridge (formerly CloudWatch Events), and SNS (Amazon Simple Notification Service).
 
-Este repositório contém uma solução para monitoramento de certificados ACM (Amazon Certificate Manager) em várias contas AWS. A solução é composta por dois componentes principais: **Coordinator** e **Worker**, cada um implementado como funções Lambda.
+## Project Structure
 
-## Visão Geral da Solução
+```bash
+.
+├── ACM_Lambda_Function
+│   ├── README.md
+│   ├── backend.tf
+│   ├── modules
+│   │   ├── eventbridge
+│   │   │   ├── eventbridge.tf
+│   │   │   └── variables.tf
+│   │   ├── iam
+│   │   │   ├── output.tf
+│   │   │   ├── role_eventbridge.tf
+│   │   │   ├── role_get_acm_lambda.tf
+│   │   │   ├── role_start_lambda.tf
+│   │   │   └── variables.tf
+│   │   ├── lambda
+│   │   │   ├── lambda_coordinator.tf
+│   │   │   ├── lambda_get_acm.tf
+│   │   │   ├── output.tf
+│   │   │   ├── provider.tf
+│   │   │   ├── source_code
+│   │   │   │   ├── coordinator.py
+│   │   │   │   └── get_acm.py
+│   │   │   └── variables.tf
+│   │   └── sns
+│   │       ├── topic.tf
+│   │       └── variables.tf
+│   ├── modules.tf
+│   ├── outputs.tf
+│   ├── provider.tf
+│   ├── terrascan.toml
+│   ├── tfsec-config.json
+│   └── variables.tf
+└── README.md
+```
 
-A solução consiste nos seguintes componentes:
+## Main Files
 
-- **Função Lambda Coordinator:** Implantada em uma conta AWS de "serviços compartilhados", a função Coordinator aciona as funções Lambda Worker em uma ou mais contas AWS, incluindo sua própria conta. Ela coleta os resultados da função Worker e aciona um tópico SNS para notificar sobre certificados ACM que estão prestes a expirar.
-  
-- **Função Lambda Worker:** Esta função verifica os certificados ACM na conta AWS onde está implantada. Ela verifica o status dos certificados e envia os resultados de volta para a função Coordinator.
+- **backend.tf:** Terraform backend configuration, defining remote state storage.
+- **modules.tf:** Declaration of the modules used in the project.
+- **outputs.tf:** Definition of Terraform outputs to export useful information.
+- **provider.tf:** Configuration of the Terraform provider and AWS provider.
+- **terrascan.toml:** Configuration for the TerraScan static security analysis tool.
+- **tfsec-config.json:** Configuration for the tfsec static security analysis tool.
+- **variables.tf:** Declaration of Terraform variables used throughout the project.
 
-- **EventBridge:** Configurado para acionar periodicamente a função Coordinator para verificar os certificados que estão próximos de expirar.
+## Modules
 
-- **SNS (Simple Notification Service):** Notifica o usuário quando os certificados ACM estão próximos da expiração.
+- **eventbridge:** Configures the EventBridge schedule to trigger the Lambda function periodically.
+- **iam:** Manages the IAM roles and policies required for the Lambda functions.
+- **lambda:** Defines the Lambda functions and their configurations.
+- **sns:** Creates an SNS topic for notifications about expired certificates.
 
-- **CloudWatch Logs:** Tanto as funções Coordinator quanto Worker registram suas operações para fins de monitoramento.
+## Functionalities
 
-### Arquitetura
+- **coordinator.py:** A Lambda function that coordinates the execution of other Lambda functions to check ACM certificates and notify about those close to expiration.
+- **get_acm.py:** A Lambda function that lists ACM certificates in different regions and checks if they are near expiration. It also attempts to automatically renew certificates close to expiration.
 
-Abaixo está o diagrama de arquitetura mostrando como os componentes interagem em várias contas AWS:
+## Project Execution
 
-![Arquitetura de Monitoramento ACM](./img/acm.jpg)
+1. Configure your AWS credentials.
+2. Modify the `backend.tf` and `variables.tf` files as necessary.
+3. Edit the `coordinator.py` and `get_acm.py` files as needed.
+4. Run `terraform init` to initialize the project.
+5. Run `terraform apply` to create the infrastructure.
+6. After successful execution, the `coordinator` Lambda function will be triggered periodically to check ACM certificates.
 
-### Estrutura do Repositório
+Make sure to review and customize the settings as needed before applying changes.
 
-O repositório contém duas branches principais:
+---
+# ACM Monitoring (Versão Português)
 
-- **Branch Main:** Contém apenas este arquivo `README.md`, que serve como introdução e guia.
-- **Branch Coordinator:** Contém o código Terraform para implantar as funções Lambda Coordinator e Worker na conta AWS principal (Serviços Compartilhados).
-- **Branch Worker:** Contém o código Terraform para implantar apenas a função Lambda Worker em contas AWS adicionais.
+Este repositório contém um conjunto de recursos de infraestrutura definidos usando Terraform para monitorar os certificados ACM (Amazon Certificate Manager) e notificar sobre os certificados que estão prestes a expirar. Ele utiliza funções Lambda, EventBridge (anteriormente CloudWatch Events) e SNS (Amazon Simple Notification Service) na AWS.
 
-## Uso
+## Estrutura do Projeto
 
-### Escolhendo a Branch Certa
+```bash
+.
+├── ACM_Lambda_Function
+│   ├── README.md
+│   ├── backend.tf
+│   ├── modules
+│   │   ├── eventbridge
+│   │   │   ├── eventbridge.tf
+│   │   │   └── variables.tf
+│   │   ├── iam
+│   │   │   ├── output.tf
+│   │   │   ├── role_eventbridge.tf
+│   │   │   ├── role_get_acm_lambda.tf
+│   │   │   ├── role_start_lambda.tf
+│   │   │   └── variables.tf
+│   │   ├── lambda
+│   │   │   ├── lambda_coordinator.tf
+│   │   │   ├── lambda_get_acm.tf
+│   │   │   ├── output.tf
+│   │   │   ├── provider.tf
+│   │   │   ├── source_code
+│   │   │   │   ├── coordinator.py
+│   │   │   │   └── get_acm.py
+│   │   │   └── variables.tf
+│   │   └── sns
+│   │       ├── topic.tf
+│   │       └── variables.tf
+│   ├── modules.tf
+│   ├── outputs.tf
+│   ├── provider.tf
+│   ├── terrascan.toml
+│   ├── tfsec-config.json
+│   └── variables.tf
+└── README.md
+```
 
-- Se você estiver configurando a função **Coordinator** (e Worker na mesma conta), clone a **Branch Coordinator**.
-- Se você estiver configurando apenas a função **Worker** em outra conta AWS, clone a **Branch Worker**.
+## Arquivos Principais
 
-### Implantação da Branch Coordinator
+- **backend.tf:** Configuração do backend do Terraform, definindo o armazenamento do estado remoto.
+- **modules.tf:** Declaração dos módulos utilizados no projeto.
+- **outputs.tf:** Definição de saídas do Terraform para exportar informações úteis.
+- **provider.tf:** Configuração do provedor Terraform e do provedor AWS.
+- **terrascan.toml:** Configurações para a ferramenta de análise estática de segurança TerraScan.
+- **tfsec-config.json:** Configurações para a ferramenta de análise estática de segurança tfsec.
+- **variables.tf:** Declaração de variáveis Terraform usadas em todo o projeto.
 
-1. Clone a **Branch Coordinator**.
-2. Modifique os arquivos `backend.tf` e `variables.tf` conforme necessário para seu ambiente.
-3. Execute `terraform init` para inicializar o projeto.
-4. Execute `terraform apply` para implantar as funções Lambda Coordinator e Worker na conta AWS principal.
+## Módulos
 
-### Implantação da Branch Worker
+- **eventbridge:** Configura o agendamento no EventBridge para acionar a função Lambda periodicamente.
+- **iam:** Gerencia as funções e políticas IAM necessárias para as funções Lambda.
+- **lambda:** Define as funções Lambda e suas configurações.
+- **sns:** Cria um tópico SNS para notificações sobre certificados expirados.
 
-1. Clone a **Branch Worker**.
-2. Modifique os arquivos `backend.tf` e `variables.tf` para seu ambiente.
-3. Execute `terraform init` para inicializar o projeto.
-4. Execute `terraform apply` para implantar a função Lambda Worker na conta AWS.
+## Funcionalidades
+
+- **coordinator.py:** Uma função Lambda que coordena a execução de outras funções Lambda para verificar certificados ACM e notificar sobre os que estão prestes a expirar.
+- **get_acm.py:** Uma função Lambda que lista os certificados ACM em diferentes regiões e verifica se estão próximos da expiração. Também tenta renovar automaticamente os certificados próximos da expiração.
+
+## Execução do Projeto
+
+1. Configure suas credenciais AWS.
+2. Altere os arquivos `backend.tf` e `variables.tf` conforme o necessário.
+3. Edite os arquivos `coordinator.py` e `get_acm.py` conforme necessário.
+4. Execute `terraform init` para inicializar o projeto.
+5. Execute `terraform apply` para criar a infraestrutura.
+6. Após a execução bem-sucedida, a função Lambda `coordinator` será acionada periodicamente para verificar os certificados ACM.
+
+Certifique-se de revisar e personalizar as configurações conforme necessário antes de aplicar as alterações.
